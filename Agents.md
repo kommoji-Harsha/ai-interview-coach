@@ -1,40 +1,48 @@
 # AGENTS.md: AI Interview Coach
 
 ## Project
-Multi-agent interview coach. It runs mock interviews tailored to a resume
-and job description, scores answers against a rubric, and includes an eval
-harness that measures scorer accuracy and consistency.
+Multi-user AI interview platform: adaptive mock interviews tailored to
+a resume and job description, rubric scoring with evidence, progress
+analytics, voice input, and an evaluation suite that measures LLM
+quality. Production concerns (cost, latency, security, observability)
+are first-class.
 
 ## Stack
-Python 3.11, FastAPI, SQLAlchemy, Postgres + pgvector, Pydantic v2,
-Next.js (TypeScript) for the frontend, Docker, pytest, ruff.
+Python 3.11, FastAPI, SQLAlchemy 2 + Alembic, Postgres + pgvector,
+Redis, Pydantic v2, a background worker, Next.js (TypeScript), Docker,
+pytest, ruff, GitHub Actions.
 
-## Repo layout
-- backend/    FastAPI app, agents, orchestrator, LLM gateway
-- frontend/   Next.js app
-- evals/      golden set, runner, metrics, reports
-- prompts/    versioned prompt files (never inline long prompts in code)
-- infra/      Dockerfile, docker-compose, deploy notes
-- docs/       api.md, architecture.md, screenshots/
+## Layout
+backend/   api/, agents/, orchestrator/, gateway/, context/, safety/,
+           analytics/, workers/, db/
+frontend/  Next.js app
+evals/     golden/, runner/, metrics/, reports/, prompt_ab/
+prompts/   versioned prompt files (prompts/<agent>/v<N>.md)
+infra/     Dockerfile(s), docker-compose, deploy, monitoring configs
+docs/      api.md, architecture.md, decisions/ (ADRs), screenshots/
 
-## Working rules
-1. Plan first. For any task bigger than one file, write a plan and wait
-   for approval before writing code.
-2. Small, focused changes. One phase or feature at a time.
-3. Never commit secrets. Read config from environment variables.
-   Keep .env.example up to date.
-4. All LLM calls go through backend/llm_gateway. No direct SDK calls
-   elsewhere. The gateway handles retries, model routing, and logging of
-   tokens, latency and cost.
-5. All LLM outputs used by code must be validated with Pydantic and
-   retried on invalid output.
-6. Do not modify files in evals/golden/ (human-labeled data).
-7. Every feature needs tests. Mock LLM calls in unit tests.
+## Rules
+1. Plan first for any change spanning more than one file.
+2. Stay inside your assigned directory. Do not edit other lanes'
+   directories; propose contract changes in docs/api.md instead.
+3. All LLM calls go through backend/gateway. No direct SDK calls
+   elsewhere. The gateway handles provider abstraction, retries,
+   routing, caching, fallback, and logging of tokens, latency and cost.
+4. Every LLM output used by code is validated with Pydantic and retried
+   on invalid output.
+5. Resume and job-description text is UNTRUSTED. It is isolated from
+   instructions in prompts and screened by backend/safety.
+6. Prompts live in prompts/ with version numbers; never inline long prompts.
+7. Never modify evals/golden/ (human-labeled data).
+8. Never commit secrets. Use env vars; keep .env.example current.
+9. Database changes go through Alembic migrations.
+10. Every feature has tests. Mock LLM calls in unit tests.
+11. Record significant design choices as ADRs in docs/decisions/.
 
 ## Code style
-Type hints everywhere. Run `ruff check .` and `ruff format .` before
-finishing. Run `pytest` and report the results.
+Type hints everywhere. Run ruff check, ruff format, pytest (and the
+frontend lint/tests) before finishing.
 
 ## Definition of done
-Tests pass, lint is clean, docs updated if an API changed, and a short
-summary of what changed and how to run it.
+Tests and lint pass, docs and OpenAPI updated, migrations included, and
+a short summary of what changed and how to verify it.
