@@ -19,7 +19,7 @@ frontend/  Next.js app
 evals/     golden/, runner/, metrics/, reports/, prompt_ab/
 prompts/   versioned prompt files (prompts/<agent>/v<N>.md)
 infra/     Dockerfile(s), docker-compose, deploy, monitoring configs
-docs/      api.md, architecture.md, decisions/ (ADRs), screenshots/
+docs/      api.md, design/, decisions/ (ADRs), screenshots/
 
 ## Rules
 1. Plan first for any change spanning more than one file.
