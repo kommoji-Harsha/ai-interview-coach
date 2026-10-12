@@ -4,7 +4,11 @@ Uses SQLite in-memory via aiosqlite so tests don't need PostgreSQL.
 Overrides FastAPI dependency injection to use test DB and mocked LLM gateway.
 """
 
+import os
 from unittest.mock import AsyncMock, MagicMock
+
+# Ensure required configuration is available for test suite
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-unit-tests-only-min32chars")
 
 import pytest
 from httpx import ASGITransport, AsyncClient

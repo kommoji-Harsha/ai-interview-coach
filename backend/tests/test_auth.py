@@ -102,3 +102,15 @@ async def test_login_nonexistent_user(client):
         },
     )
     assert resp.status_code == 401
+
+
+def test_jwt_secret_key_required_in_settings(monkeypatch):
+    from pydantic import ValidationError
+
+    from backend.config import Settings
+
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(_env_file=None)
+    errors = exc_info.value.errors()
+    assert any(err["loc"] == ("jwt_secret_key",) for err in errors)
