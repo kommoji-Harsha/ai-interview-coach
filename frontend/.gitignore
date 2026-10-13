@@ -28,3 +28,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ensure frontend/lib is not ignored by root Python .gitignore
+!lib/
+!lib/**
+
