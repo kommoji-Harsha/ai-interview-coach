@@ -11,6 +11,8 @@ import {
 } from "@/lib/api";
 import { SessionDetail, SessionTurn, TurnScoreRecord } from "@/lib/types";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StateViews";
+import { useVoice } from "@/lib/use-voice";
+
 
 export default function InterviewChatPage(): React.ReactElement {
   const params = useParams<{ id: string }>();
@@ -33,7 +35,32 @@ export default function InterviewChatPage(): React.ReactElement {
   const [actionError, setActionError] = useState<string | null>(null);
   const [endingSession, setEndingSession] = useState(false);
 
+  const {
+    isRecording,
+    isTranscribing,
+    isSpeaking,
+    activeSpeakingTurn,
+    micError,
+    voiceNotice,
+    autoRead,
+    setAutoRead,
+    startVoiceInput,
+    stopVoiceInput,
+    clearMicError,
+    speakInterviewerResponse,
+    stopSpeaking,
+  } = useVoice({
+    onTranscriptChange: setAnswerText,
+    currentText: answerText,
+  });
+
+  const autoReadRef = useRef(autoRead);
+  useEffect(() => {
+    autoReadRef.current = autoRead;
+  }, [autoRead]);
+
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
 
   const loadSessionData = useCallback(async () => {
     if (!sessionId) return;
@@ -76,6 +103,11 @@ export default function InterviewChatPage(): React.ReactElement {
     const trimmed = answerText.trim();
     if (!trimmed || isStreaming || !session) return;
 
+    if (isRecording) {
+      stopVoiceInput();
+    }
+    stopSpeaking();
+
     setActionError(null);
     const candidateTurnNumber = turns.length + 1;
     const candidateTurn: SessionTurn = {
@@ -112,6 +144,10 @@ export default function InterviewChatPage(): React.ReactElement {
             setTurns((prev) => [...prev, interviewerTurn]);
             setStreamingContent("");
             setTurnsRemaining(meta.turns_remaining);
+
+            if (autoReadRef.current) {
+              speakInterviewerResponse(accumulated, meta.turn_number);
+            }
           },
         }
       );
@@ -140,8 +176,13 @@ export default function InterviewChatPage(): React.ReactElement {
 
   const handleEndSession = async () => {
     if (!sessionId || endingSession) return;
+    if (isRecording) {
+      stopVoiceInput();
+    }
+    stopSpeaking();
     setActionError(null);
     setEndingSession(true);
+
     try {
       await endSession(sessionId);
       router.push(`/sessions/${sessionId}/results`);
@@ -201,6 +242,16 @@ export default function InterviewChatPage(): React.ReactElement {
         </div>
 
         <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+            <input
+              type="checkbox"
+              checked={autoRead}
+              onChange={(e) => setAutoRead(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>Auto-read responses (TTS)</span>
+          </label>
+
           {isCompleted ? (
             <Link
               href={`/sessions/${sessionId}/results`}
@@ -268,7 +319,41 @@ export default function InterviewChatPage(): React.ReactElement {
                         Level {turn.difficulty}
                       </span>
                     )}
+                    {isInterviewer && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          speakInterviewerResponse(
+                            turn.content,
+                            turn.turn_number
+                          )
+                        }
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
+                          isSpeaking && activeSpeakingTurn === turn.turn_number
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-200/80 text-slate-700 hover:bg-slate-200"
+                        }`}
+                        aria-label={
+                          isSpeaking && activeSpeakingTurn === turn.turn_number
+                            ? `Stop audio for turn ${turn.turn_number}`
+                            : `Listen to turn ${turn.turn_number}`
+                        }
+                      >
+                        {isSpeaking &&
+                        activeSpeakingTurn === turn.turn_number ? (
+                          <>
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />
+                            <span>Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🔊 Listen</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
+
                   <p className="whitespace-pre-wrap leading-relaxed">
                     {turn.content}
                   </p>
@@ -323,6 +408,36 @@ export default function InterviewChatPage(): React.ReactElement {
           onSubmit={handleSendAnswer}
           className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
         >
+          {micError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="mb-3 flex items-start justify-between rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Microphone notice:</span>
+                <span>{micError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={clearMicError}
+                className="ml-2 font-bold text-amber-700 hover:text-amber-900"
+                aria-label="Dismiss microphone notice"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {voiceNotice && (
+            <div
+              role="status"
+              className="mb-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-2.5 text-xs text-indigo-700"
+            >
+              {voiceNotice}
+            </div>
+          )}
+
           <label htmlFor="candidate-answer-input" className="sr-only">
             Your Interview Answer
           </label>
@@ -335,22 +450,65 @@ export default function InterviewChatPage(): React.ReactElement {
             placeholder="Structure your response clearly (e.g., Context, Action, Result)..."
             className="block w-full resize-none rounded-xl border border-slate-300 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
           />
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              {isStreaming
-                ? "Receiving live streaming response..."
-                : "Press Send Answer when ready."}
-            </span>
-            <button
-              type="submit"
-              disabled={isStreaming || !answerText.trim()}
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isStreaming ? "Streaming..." : "Send Answer"}
-            </button>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={isRecording ? stopVoiceInput : startVoiceInput}
+                disabled={isStreaming || isTranscribing}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50 ${
+                  isRecording
+                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
+                    : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                aria-label={
+                  isRecording
+                    ? "Stop voice recording"
+                    : "Record answer with voice"
+                }
+              >
+                {isRecording ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                    <span>Stop Recording</span>
+                  </>
+                ) : isTranscribing ? (
+                  <>
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                    <span>Transcribing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🎤 Record Answer</span>
+                  </>
+                )}
+              </button>
+              {answerText.trim() && (
+                <span className="text-[11px] text-slate-500">
+                  Review & edit your transcript before sending.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">
+                {isStreaming
+                  ? "Receiving live streaming response..."
+                  : "Press Send Answer when ready."}
+              </span>
+              <button
+                type="submit"
+                disabled={isStreaming || isTranscribing || !answerText.trim()}
+                className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isStreaming ? "Streaming..." : "Send Answer"}
+              </button>
+            </div>
           </div>
         </form>
       )}
+
     </div>
   );
 }
