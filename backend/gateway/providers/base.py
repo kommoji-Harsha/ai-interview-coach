@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 
 from pydantic import BaseModel
 
-from backend.gateway.models import LLMResult, Message
+from backend.gateway.models import LLMResult, Message, TranscriptionResult
 
 
 class BaseLLMProvider(ABC):
@@ -27,3 +27,13 @@ class BaseLLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> AsyncIterator[str]: ...
+
+    async def transcribe(
+        self,
+        audio_bytes: bytes,
+        filename: str = "audio.webm",
+        content_type: str = "audio/webm",
+        model: str = "whisper-1",
+        language: str = "en",
+    ) -> TranscriptionResult:
+        raise NotImplementedError(f"Provider {self.name} does not support audio transcription")

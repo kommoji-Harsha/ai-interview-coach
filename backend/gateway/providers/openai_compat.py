@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 import httpx
 import structlog
 
-from backend.gateway.models import LLMResult
+from backend.gateway.models import LLMResult, TranscriptionResult
 from backend.gateway.providers.base import BaseLLMProvider
 
 logger = structlog.get_logger()
@@ -71,6 +71,47 @@ class OpenAICompatProvider(BaseLLMProvider):
                     delta = chunk["choices"][0].get("delta", {})
                     if text := delta.get("content"):
                         yield text
+
+    async def transcribe(
+        self,
+        audio_bytes: bytes,
+        filename: str = "audio.webm",
+        content_type: str = "audio/webm",
+        model: str = "whisper-1",
+        language: str = "en",
+    ) -> TranscriptionResult:
+        start = time.monotonic()
+        files = {
+            "file": (filename, audio_bytes, content_type),
+        }
+        data: dict[str, str] = {
+            "model": model,
+            "response_format": "verbose_json",
+        }
+        if language:
+            data["language"] = language
+
+        resp = await self._client.post(
+            "/audio/transcriptions",
+            files=files,
+            data=data,
+        )
+        resp.raise_for_status()
+        result_data = resp.json()
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        text = result_data.get("text", "")
+        duration = float(result_data.get("duration", 0.0))
+        lang = result_data.get("language", language or "en")
+
+        return TranscriptionResult(
+            text=text,
+            duration_seconds=duration,
+            language=lang,
+            model=model,
+            provider=self.name,
+            latency_ms=elapsed_ms,
+        )
 
     async def close(self):
         await self._client.aclose()

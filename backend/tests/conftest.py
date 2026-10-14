@@ -22,7 +22,7 @@ from backend.api.deps_gateway import get_gateway, get_session_manager
 from backend.db.models import Base
 from backend.db.session import get_db
 from backend.gateway.client import LLMGateway
-from backend.gateway.models import LLMResult
+from backend.gateway.models import LLMResult, TranscriptionResult
 from backend.main import create_app
 from backend.orchestrator.session_manager import SessionManager
 
@@ -75,12 +75,22 @@ MOCK_LLM_RESPONSE = LLMResult(
     cached=False,
 )
 
+MOCK_TRANSCRIPTION_RESPONSE = TranscriptionResult(
+    text="In my previous role at Acme, I led a distributed engineering team.",
+    duration_seconds=12.5,
+    language="en",
+    model="whisper-1",
+    provider="openai_compat",
+    latency_ms=180,
+)
+
 
 @pytest.fixture
 def mock_gateway():
     """A mocked LLM gateway that returns a canned JSON response."""
     gw = MagicMock(spec=LLMGateway)
     gw.complete = AsyncMock(return_value=MOCK_LLM_RESPONSE)
+    gw.transcribe = AsyncMock(return_value=MOCK_TRANSCRIPTION_RESPONSE)
     return gw
 
 
