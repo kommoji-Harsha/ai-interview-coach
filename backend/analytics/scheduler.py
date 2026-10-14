@@ -7,10 +7,11 @@ based on quality ratings.
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from backend.analytics.models import ReviewSchedule
-from backend.db.models import Score, Session, Turn
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.analytics.models import ReviewSchedule
+from backend.db.models import Score, Session, Turn
 
 logger = structlog.get_logger()
 

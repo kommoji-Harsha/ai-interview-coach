@@ -3,10 +3,11 @@
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from backend.analytics.models import ReviewSchedule
 from backend.analytics.scheduler import SpacedRepetitionScheduler
 from backend.db.models import Base, Score, Session, Turn, User
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # ---------------------------------------------------------------------------
 # Pure Algorithmic SM-2 Tests with Fixed Dates

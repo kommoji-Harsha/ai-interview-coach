@@ -5,6 +5,9 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.analytics.models import (
     ProgressAnalyticsResponse,
     ReviewSchedule,
@@ -14,8 +17,6 @@ from backend.analytics.models import (
 )
 from backend.analytics.scheduler import SpacedRepetitionScheduler
 from backend.db.models import Score, Session, Turn
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 

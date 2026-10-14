@@ -3,7 +3,6 @@
 import uuid
 from datetime import datetime
 
-from backend.db.models import Base, Session, User
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import (
     CheckConstraint,
@@ -16,6 +15,8 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.db.models import Base, Session, User
 
 
 class ReviewSchedule(Base):
