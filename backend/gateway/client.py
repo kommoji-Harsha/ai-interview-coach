@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from backend.gateway.cache import ResponseCache
 from backend.gateway.cost import calculate_cost, log_cost
-from backend.gateway.models import CostRecord, LLMResult, Message
+from backend.gateway.models import CostRecord, LLMResult, Message, TranscriptionResult
 from backend.gateway.retry import RetryPolicy, retry_with_backoff
 from backend.gateway.routing import Router
 
@@ -142,6 +142,101 @@ class LLMGateway:
         raise LLMUnavailableError(
             f"All LLM providers failed for streaming. Last error: {last_exc}"
         )
+
+    async def transcribe(
+        self,
+        audio_bytes: bytes,
+        filename: str = "audio.webm",
+        content_type: str = "audio/webm",
+        language: str = "en",
+        model: str = "whisper-1",
+        session_id: str | None = None,
+    ) -> TranscriptionResult:
+        chain = self._router.get_chain("transcription")
+        last_exc: Exception | None = None
+
+        for provider_cfg in chain:
+            try:
+                result = await retry_with_backoff(
+                    lambda p=provider_cfg.provider: p.transcribe(
+                        audio_bytes=audio_bytes,
+                        filename=filename,
+                        content_type=content_type,
+                        model=model,
+                        language=language,
+                    ),
+                    self._retry_policy,
+                )
+                cost_usd = (
+                    (result.duration_seconds / 60.0) * 0.006
+                    if result.duration_seconds > 0
+                    else 0.0
+                )
+                await log_cost(
+                    CostRecord(
+                        provider=result.provider,
+                        model=result.model,
+                        agent_type="transcription",
+                        session_id=session_id,
+                        cost_usd=cost_usd,
+                        latency_ms=result.latency_ms,
+                        success=True,
+                    )
+                )
+                return result
+            except NotImplementedError:
+                continue
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "transcribe_provider_failed",
+                    provider=provider_cfg.provider.name,
+                    error=str(exc),
+                )
+                continue
+
+        if "openai_compat" in self._router._providers:
+            provider = self._router._providers["openai_compat"]
+            try:
+                result = await retry_with_backoff(
+                    lambda p=provider: p.transcribe(
+                        audio_bytes=audio_bytes,
+                        filename=filename,
+                        content_type=content_type,
+                        model=model,
+                        language=language,
+                    ),
+                    self._retry_policy,
+                )
+                cost_usd = (
+                    (result.duration_seconds / 60.0) * 0.006
+                    if result.duration_seconds > 0
+                    else 0.0
+                )
+                await log_cost(
+                    CostRecord(
+                        provider=result.provider,
+                        model=result.model,
+                        agent_type="transcription",
+                        session_id=session_id,
+                        cost_usd=cost_usd,
+                        latency_ms=result.latency_ms,
+                        success=True,
+                    )
+                )
+                return result
+            except NotImplementedError:
+                pass
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "transcribe_fallback_failed",
+                    provider=provider.name,
+                    error=str(exc),
+                )
+
+        logger.error("all_transcription_providers_failed")
+        raise LLMUnavailableError(f"All transcription providers failed. Last error: {last_exc}")
 
 
 class LLMUnavailableError(Exception):

@@ -446,7 +446,9 @@ Query params: `?days=30` (default 30, max 180)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `audio` | file | Yes | WebM/WAV, max 25 MB, max 5 min |
+| `audio` | file | Yes | WebM/WAV/MP3/M4A/OGG, max 25 MB, max 5 min (accepts `file` alias) |
+
+Transcribes recorded audio to text using Whisper API with noise marker cleaning (e.g., `[inaudible]`, `[silence]`, `(cough)`), unicode normalization, and control character sanitization.
 
 ```json
 // Response 200

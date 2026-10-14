@@ -47,3 +47,9 @@ class RespondResponse(BaseModel):
     difficulty: int
     topics_covered: list[str]
     turns_remaining: int
+
+
+class TranscribeResponse(BaseModel):
+    text: str
+    duration_seconds: float = 0.0
+    language: str = "en"

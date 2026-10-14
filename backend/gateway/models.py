@@ -33,3 +33,12 @@ class CostRecord(BaseModel):
     cached: bool = False
     retries: int = 0
     success: bool = True
+
+
+class TranscriptionResult(BaseModel):
+    text: str
+    duration_seconds: float = 0.0
+    language: str = "en"
+    model: str = "whisper-1"
+    provider: str = "openai_compat"
+    latency_ms: int = 0
