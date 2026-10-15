@@ -4,8 +4,8 @@ from typing import Any
 
 
 def compute_agreement_within_one(
-    predicted_score: float | int,
-    human_target: float | int | dict[str, Any],
+    predicted_score: float,
+    human_target: float | dict[str, Any],
 ) -> bool:
     """Check if predicted score is within ±1 of human score or human range.
 
@@ -22,8 +22,8 @@ def compute_agreement_within_one(
 
 
 def compute_mae(
-    predicted_score: float | int,
-    human_target: float | int | dict[str, Any],
+    predicted_score: float,
+    human_target: float | dict[str, Any],
 ) -> float:
     """Compute absolute error between predicted score and human target midpoint."""
     pred = float(predicted_score)
@@ -36,8 +36,8 @@ def compute_mae(
 
 
 def compute_in_range(
-    predicted_score: float | int,
-    human_target: float | int | dict[str, Any],
+    predicted_score: float,
+    human_target: float | dict[str, Any],
 ) -> bool:
     """Check if predicted score falls strictly within the expected range [min, max]."""
     pred = float(predicted_score)
@@ -58,5 +58,7 @@ def compute_agreement_rate(
     """
     if not evaluations:
         return 1.0
-    matches = sum(1 for pred, human in evaluations if compute_agreement_within_one(pred, human))
+    matches = sum(
+        1 for pred, human in evaluations if compute_agreement_within_one(pred, human)
+    )
     return matches / len(evaluations)

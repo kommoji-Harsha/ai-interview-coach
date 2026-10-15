@@ -38,7 +38,11 @@ def validate_evidence_quote(
     norm_answer = _normalize_text(answer)
 
     # Check for no_answer condition
-    if answer_type == "no_answer" or "not addressed" in norm_evidence or "no answer" in norm_evidence:
+    if (
+        answer_type == "no_answer"
+        or "not addressed" in norm_evidence
+        or "no answer" in norm_evidence
+    ):
         return True, "Valid non-answer evidence"
 
     # 1. Direct exact or normalized substring match
@@ -68,12 +72,17 @@ def validate_evidence_quote(
     # 4. Check if required phrases are met
     if required_phrases:
         matched_required = sum(
-            1 for p in required_phrases if _normalize_text(p) in norm_evidence or _normalize_text(p) in norm_answer
+            1
+            for p in required_phrases
+            if _normalize_text(p) in norm_evidence or _normalize_text(p) in norm_answer
         )
         if matched_required > 0:
             return True, "Matched required reference phrases"
 
-    return False, f"Evidence '{clean_evidence[:60]}...' is not grounded in candidate answer"
+    return (
+        False,
+        f"Evidence '{clean_evidence[:60]}...' is not grounded in candidate answer",
+    )
 
 
 def compute_evidence_validity(

@@ -1,9 +1,7 @@
 """Aggregation module to synthesize case-level metrics into run summaries."""
 
-from evals.metrics.agreement import compute_agreement_rate
 from evals.metrics.cost import compute_cost_metrics
 from evals.metrics.injection import compute_injection_pass_rate
-from evals.metrics.variance import compute_score_std
 from evals.runner.models import CaseRunResult, EvalMetricsSummary
 
 
@@ -53,16 +51,11 @@ def aggregate_metrics(
         if case.is_unstable:
             unstable_count += 1
 
-        for agr in case.dimension_agreements.values():
-            all_agreements.append(agr)
-        for mae in case.dimension_maes.values():
-            all_maes.append(mae)
-        for var in case.dimension_variances.values():
-            all_variances.append(var)
-        for std in case.dimension_stds.values():
-            all_stds.append(std)
-        for ev_rate in case.evidence_validity_rates.values():
-            all_evidence_rates.append(ev_rate)
+        all_agreements.extend(case.dimension_agreements.values())
+        all_maes.extend(case.dimension_maes.values())
+        all_variances.extend(case.dimension_variances.values())
+        all_stds.extend(case.dimension_stds.values())
+        all_evidence_rates.extend(case.evidence_validity_rates.values())
 
         if case.is_injection and case.injection_resisted is not None:
             injection_outcomes.append((case.injection_resisted, case.case_id))

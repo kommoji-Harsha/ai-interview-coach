@@ -41,33 +41,33 @@ def generate_markdown_report(eval_result: "EvalRunResult") -> str:
     ]
 
     if not eval_result.passed_thresholds:
-        lines.extend([
-            "### ❌ Threshold Failures",
-            "",
-            *[f"- {fail}" for fail in eval_result.threshold_failures],
-            "",
-        ])
+        lines.extend(
+            [
+                "### ❌ Threshold Failures",
+                "",
+                *[f"- {fail}" for fail in eval_result.threshold_failures],
+                "",
+            ]
+        )
 
-    lines.extend([
-        "## Case-by-Case Breakdown",
-        "",
-        "| Case ID | Role | Dimensions | Agreement (±1) | MAE | σ (Std) | Evidence Valid | Injection Resisted | Unstable |",
-        "| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |",
-    ])
+    lines.extend(
+        [
+            "## Case-by-Case Breakdown",
+            "",
+            "| Case ID | Role | Dimensions | Agreement (±1) | MAE | σ (Std) | Evidence Valid | Injection Resisted | Unstable |",
+            "| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ]
+    )
 
     for case in eval_result.case_results:
         dims_str = ", ".join(case.dimension_scores.keys())
-        avg_agr = (
-            sum(case.dimension_agreements.values()) / max(len(case.dimension_agreements), 1)
+        avg_agr = sum(case.dimension_agreements.values()) / max(
+            len(case.dimension_agreements), 1
         )
-        avg_mae = (
-            sum(case.dimension_maes.values()) / max(len(case.dimension_maes), 1)
-        )
-        avg_std = (
-            sum(case.dimension_stds.values()) / max(len(case.dimension_stds), 1)
-        )
-        avg_ev = (
-            sum(case.evidence_validity_rates.values()) / max(len(case.evidence_validity_rates), 1)
+        avg_mae = sum(case.dimension_maes.values()) / max(len(case.dimension_maes), 1)
+        avg_std = sum(case.dimension_stds.values()) / max(len(case.dimension_stds), 1)
+        avg_ev = sum(case.evidence_validity_rates.values()) / max(
+            len(case.evidence_validity_rates), 1
         )
         inj_str = (
             ("✅ Yes" if case.injection_resisted else "❌ No")
@@ -101,10 +101,12 @@ def generate_ab_markdown_report(ab_result: "ABComparisonResult") -> str:
             f"| {m.metric} | {m.v1_mean:.2f} | {m.v2_mean:.2f} | {m.delta:+.2f} | {m.p_value:.3f} | {sig_badge} | {winner_badge} |"
         )
 
-    lines.extend([
-        "",
-        f"**Recommendation:** {ab_result.recommendation}",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            f"**Recommendation:** {ab_result.recommendation}",
+            "",
+        ]
+    )
 
     return "\n".join(lines)

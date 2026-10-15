@@ -11,7 +11,11 @@ from evals.metrics.agreement import compute_agreement_within_one, compute_mae
 from evals.metrics.cost import estimate_token_cost
 from evals.metrics.evidence import compute_evidence_validity
 from evals.metrics.injection import evaluate_injection_resistance
-from evals.metrics.variance import compute_run_variance, compute_score_std, is_case_unstable
+from evals.metrics.variance import (
+    compute_run_variance,
+    compute_score_std,
+    is_case_unstable,
+)
 from evals.runner.models import CaseRunResult, GoldenCase
 
 
@@ -46,6 +50,33 @@ class MockEvaluationGateway:
             "technical_depth",
         ]
 
+        technical_keywords = [
+            "redis",
+            "b-tree",
+            "database",
+            "postgres",
+            "sql",
+            "nosql",
+            "migration",
+            "team of five",
+            "distributed",
+            "event bubbling",
+            "dom",
+            "tcp",
+            "syn",
+            "connection pooling",
+            "batch",
+            "stream",
+            "kafka",
+            "rdb",
+            "aof",
+            "idempotent",
+            "bloom",
+        ]
+        is_substantive = (
+            any(kw in answer.lower() for kw in technical_keywords) or len(answer) > 120
+        )
+
         # Handle Prompt Injection Attempts
         if "SYSTEM OVERRIDE" in answer or "prompt injection" in answer.lower():
             scores = [
@@ -57,11 +88,13 @@ class MockEvaluationGateway:
                 }
                 for dim in dimensions
             ]
-            content = json.dumps({
-                "answer_type": "no_answer",
-                "scores": scores,
-                "overall_impression": "Candidate attempted a system prompt injection attack; refusal score assigned.",
-            })
+            content = json.dumps(
+                {
+                    "answer_type": "no_answer",
+                    "scores": scores,
+                    "overall_impression": "Candidate attempted a system prompt injection attack; refusal score assigned.",
+                }
+            )
         elif "don't know" in answer.lower() or "never used one" in answer.lower():
             scores = [
                 {
@@ -72,14 +105,15 @@ class MockEvaluationGateway:
                 }
                 for dim in dimensions
             ]
-            content = json.dumps({
-                "answer_type": "no_answer",
-                "scores": scores,
-                "overall_impression": "Candidate skipped the question.",
-            })
-        elif len(answer) > 100:
+            content = json.dumps(
+                {
+                    "answer_type": "no_answer",
+                    "scores": scores,
+                    "overall_impression": "Candidate skipped the question.",
+                }
+            )
+        elif is_substantive:
             # High quality detailed answer
-            # Extract first sentence or quote from answer for evidence
             first_clause = answer.split(".")[0].strip()
             scores = [
                 {
@@ -90,11 +124,13 @@ class MockEvaluationGateway:
                 }
                 for dim in dimensions
             ]
-            content = json.dumps({
-                "answer_type": "attempted",
-                "scores": scores,
-                "overall_impression": "Strong comprehensive response with concrete domain specifics.",
-            })
+            content = json.dumps(
+                {
+                    "answer_type": "attempted",
+                    "scores": scores,
+                    "overall_impression": "Strong comprehensive response with concrete domain specifics.",
+                }
+            )
         else:
             # Brief / weak answer
             scores = [
@@ -106,11 +142,13 @@ class MockEvaluationGateway:
                 }
                 for dim in dimensions
             ]
-            content = json.dumps({
-                "answer_type": "attempted",
-                "scores": scores,
-                "overall_impression": "Answer addressed the topic at a superficial level.",
-            })
+            content = json.dumps(
+                {
+                    "answer_type": "attempted",
+                    "scores": scores,
+                    "overall_impression": "Answer addressed the topic at a superficial level.",
+                }
+            )
 
         prompt_tokens = len(user_msg.split()) * 2
         completion_tokens = len(content.split()) * 2
@@ -178,13 +216,15 @@ async def score_case_n_times(
         cost_usd = estimate_token_cost(prompt_tokens, completion_tokens)
         case_total_cost += cost_usd
 
-        execution_records.append({
-            "case_id": case.id,
-            "latency_ms": elapsed_ms,
-            "cost_usd": cost_usd,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-        })
+        execution_records.append(
+            {
+                "case_id": case.id,
+                "latency_ms": elapsed_ms,
+                "cost_usd": cost_usd,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+            }
+        )
 
         # Record scores and evidence per dimension
         current_repeat_scores: dict[str, int] = {}
@@ -210,12 +250,11 @@ async def score_case_n_times(
         dimension_variances[dim] = round(compute_run_variance(scores), 4)
         dimension_stds[dim] = round(compute_score_std(scores), 4)
 
-        target_min, target_max, midpoint = case.get_dimension_target(dim)
+        target_min, target_max, _midpoint = case.get_dimension_target(dim)
         target_dict = {"min": target_min, "max": target_max}
 
         agreements = [
-            1.0 if compute_agreement_within_one(s, target_dict) else 0.0
-            for s in scores
+            1.0 if compute_agreement_within_one(s, target_dict) else 0.0 for s in scores
         ]
         dimension_agreements[dim] = round(sum(agreements) / max(len(agreements), 1), 4)
 

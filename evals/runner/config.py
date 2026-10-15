@@ -7,8 +7,12 @@ class EvalConfig(BaseModel):
     """Configuration for evaluation runs and CI threshold gating."""
 
     # Run parameters
-    repeats: int = Field(default=3, ge=1, description="Number of scoring passes per case")
-    model: str | None = Field(default=None, description="LLM model override (e.g. gemini-2.0-flash)")
+    repeats: int = Field(
+        default=3, ge=1, description="Number of scoring passes per case"
+    )
+    model: str | None = Field(
+        default=None, description="LLM model override (e.g. gemini-2.0-flash)"
+    )
     prompt_version: str = Field(default="v1", description="Prompt version under test")
 
     # Quality Gate Thresholds

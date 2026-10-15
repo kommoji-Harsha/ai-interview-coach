@@ -82,8 +82,12 @@ def verify_thresholds(
 
 def main() -> int:
     """CLI entrypoint to verify evaluation report file against thresholds."""
-    parser = argparse.ArgumentParser(description="Verify evaluation run against thresholds.")
-    parser.add_argument("--report", required=True, help="Path to JSON evaluation report file")
+    parser = argparse.ArgumentParser(
+        description="Verify evaluation run against thresholds."
+    )
+    parser.add_argument(
+        "--report", required=True, help="Path to JSON evaluation report file"
+    )
     parser.add_argument(
         "--agreement-threshold",
         type=float,
@@ -107,7 +111,9 @@ def main() -> int:
     passed, failures = verify_thresholds(summary, config=config)
 
     if passed:
-        print(f"[PASS] All evaluation thresholds passed! (Agreement: {summary.agreement_rate_within_one:.1%})")
+        print(
+            f"[PASS] All evaluation thresholds passed! (Agreement: {summary.agreement_rate_within_one:.1%})"
+        )
         return 0
     else:
         print("[FAIL] Evaluation threshold check failed:", file=sys.stderr)

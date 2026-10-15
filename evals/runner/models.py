@@ -32,14 +32,23 @@ class GoldenCase(BaseModel):
     human_scores: dict[str, float | int | dict[str, float | int]] = Field(
         description="Human gold standard scores per rubric dimension"
     )
-    category: str = Field(default="general", description="Category: technical, behavioral, system-design, etc.")
+    category: str = Field(
+        default="general",
+        description="Category: technical, behavioral, system-design, etc.",
+    )
     difficulty: int = Field(default=2, ge=1, le=5)
     jd_text: str = Field(default="", description="Job description context")
     rubric_dimensions: list[str] = Field(default_factory=list)
     evidence_must_reference: list[str] = Field(default_factory=list)
-    is_injection: bool = Field(default=False, description="Whether answer contains prompt injection attempt")
-    expected_answer_type: str = Field(default="attempted", description="attempted or no_answer")
-    deprecated: bool = Field(default=False, description="Flagged as deprecated if updated")
+    is_injection: bool = Field(
+        default=False, description="Whether answer contains prompt injection attempt"
+    )
+    expected_answer_type: str = Field(
+        default="attempted", description="attempted or no_answer"
+    )
+    deprecated: bool = Field(
+        default=False, description="Flagged as deprecated if updated"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
@@ -58,8 +67,12 @@ class GoldenCase(BaseModel):
             data.setdefault("answer", inp.get("answer", ""))
             data.setdefault("jd_text", inp.get("jd_text", ""))
             data.setdefault("role", inp.get("role", data.get("role", "")))
-            data.setdefault("difficulty", inp.get("difficulty", data.get("difficulty", 2)))
-            data.setdefault("category", data.get("category", inp.get("topic", "general")))
+            data.setdefault(
+                "difficulty", inp.get("difficulty", data.get("difficulty", 2))
+            )
+            data.setdefault(
+                "category", data.get("category", inp.get("topic", "general"))
+            )
 
             if "rubric_dimensions" in inp and not data.get("rubric_dimensions"):
                 data["rubric_dimensions"] = inp["rubric_dimensions"]
@@ -67,7 +80,9 @@ class GoldenCase(BaseModel):
             if isinstance(exp, dict):
                 if "scores" in exp and not data.get("human_scores"):
                     data["human_scores"] = exp["scores"]
-                if "evidence_must_reference" in exp and not data.get("evidence_must_reference"):
+                if "evidence_must_reference" in exp and not data.get(
+                    "evidence_must_reference"
+                ):
                     data["evidence_must_reference"] = exp["evidence_must_reference"]
                 if "answer_type" in exp and not data.get("expected_answer_type"):
                     data["expected_answer_type"] = exp["answer_type"]
@@ -127,15 +142,21 @@ class EvalMetricsSummary(BaseModel):
     )
     mean_mae: float = Field(description="Mean Absolute Error across all scores")
     mean_run_variance: float = Field(description="Mean score variance across N repeats")
-    mean_run_std: float = Field(description="Mean score standard deviation across N repeats")
-    unstable_case_count: int = Field(description="Number of cases with high variance (std > 0.8)")
+    mean_run_std: float = Field(
+        description="Mean score standard deviation across N repeats"
+    )
+    unstable_case_count: int = Field(
+        description="Number of cases with high variance (std > 0.8)"
+    )
     evidence_validity_rate: float = Field(
         description="Fraction of evidence quotes that are valid substrings/citations"
     )
     injection_resistance_rate: float = Field(
         description="Pass rate of defending against prompt injection attacks"
     )
-    cost_per_answer_usd: float = Field(description="Average LLM cost per answer evaluated")
+    cost_per_answer_usd: float = Field(
+        description="Average LLM cost per answer evaluated"
+    )
     total_cost_usd: float = Field(description="Total LLM cost for entire run")
     total_tokens: int = Field(default=0, description="Total tokens used in run")
     latency_p50_ms: float = Field(description="Median latency in milliseconds")

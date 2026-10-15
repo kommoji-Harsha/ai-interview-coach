@@ -34,7 +34,7 @@ def load_golden_set(
     with open(path, encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
             line_str = line.strip()
-            if not line_str or line_str.startswith("//") or line_str.startswith("#"):
+            if not line_str or line_str.startswith(("//", "#")):
                 continue
 
             try:

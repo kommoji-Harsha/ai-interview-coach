@@ -7,7 +7,9 @@ from typing import Any
 from evals.runner.models import EvalMetricsSummary, EvalRunResult
 
 
-def load_run_history(history_file: str | Path = "evals/reports/history.json") -> list[dict[str, Any]]:
+def load_run_history(
+    history_file: str | Path = "evals/reports/history.json",
+) -> list[dict[str, Any]]:
     """Load historical evaluation run summaries from a JSON ledger file.
 
     Returns empty list if the file does not exist.
@@ -19,7 +21,7 @@ def load_run_history(history_file: str | Path = "evals/reports/history.json") ->
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
             return data if isinstance(data, list) else []
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return []
 
 
@@ -59,9 +61,10 @@ def get_latest_baseline(
     history = load_run_history(history_file)
     # Search backwards for the most recent passing run
     for entry in reversed(history):
-        if entry.get("passed_thresholds"):
-            if prompt_version is None or entry.get("prompt_version") == prompt_version:
-                metrics_data = entry.get("summary_metrics")
-                if metrics_data:
-                    return EvalMetricsSummary.model_validate(metrics_data)
+        if entry.get("passed_thresholds") and (
+            prompt_version is None or entry.get("prompt_version") == prompt_version
+        ):
+            metrics_data = entry.get("summary_metrics")
+            if metrics_data:
+                return EvalMetricsSummary.model_validate(metrics_data)
     return None

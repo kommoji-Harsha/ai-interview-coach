@@ -60,7 +60,9 @@ def compute_cost_metrics(
         }
 
     total_cost = sum(r.get("cost_usd", 0.0) for r in records)
-    total_tokens = sum(r.get("prompt_tokens", 0) + r.get("completion_tokens", 0) for r in records)
+    total_tokens = sum(
+        r.get("prompt_tokens", 0) + r.get("completion_tokens", 0) for r in records
+    )
     latencies = [float(r.get("latency_ms", 0.0)) for r in records if "latency_ms" in r]
 
     ans_count = max(total_answers, 1)
@@ -70,7 +72,13 @@ def compute_cost_metrics(
         "total_cost_usd": round(total_cost, 6),
         "cost_per_answer_usd": round(cost_per_answer, 6),
         "total_tokens": total_tokens,
-        "latency_p50_ms": round(calculate_percentile(latencies, 50.0), 2) if latencies else 0.0,
-        "latency_p95_ms": round(calculate_percentile(latencies, 95.0), 2) if latencies else 0.0,
-        "latency_mean_ms": round(sum(latencies) / len(latencies), 2) if latencies else 0.0,
+        "latency_p50_ms": round(calculate_percentile(latencies, 50.0), 2)
+        if latencies
+        else 0.0,
+        "latency_p95_ms": round(calculate_percentile(latencies, 95.0), 2)
+        if latencies
+        else 0.0,
+        "latency_mean_ms": round(sum(latencies) / len(latencies), 2)
+        if latencies
+        else 0.0,
     }

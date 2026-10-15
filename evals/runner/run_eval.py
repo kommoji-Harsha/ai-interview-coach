@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +48,11 @@ async def run_evaluation(
         raise ValueError(f"No valid test cases found in {golden_path}")
 
     # Determine whether to use real LLMGateway or MockEvaluationGateway
-    has_api_key = bool(os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    has_api_key = bool(
+        os.getenv("GEMINI_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+    )
     if mock or not has_api_key:
         gateway: Any = MockEvaluationGateway()
     else:
@@ -79,13 +83,16 @@ async def run_evaluation(
 
     passed, failures = verify_thresholds(summary, config=config)
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     run_id = f"eval-{uuid.uuid4().hex[:8]}"
 
     eval_result = EvalRunResult(
         run_id=run_id,
         timestamp=timestamp,
-        model_name=model or (getattr(gateway, "model", "mock-scorer-llm") if mock else "gemini-2.0-flash"),
+        model_name=model
+        or (
+            getattr(gateway, "model", "mock-scorer-llm") if mock else "gemini-2.0-flash"
+        ),
         prompt_version=prompt_version,
         golden_set_path=str(Path(golden_path).as_posix()),
         case_count=len(cases),
@@ -103,15 +110,12 @@ async def run_evaluation(
     json_content = generate_json_report(eval_result)
     md_content = generate_markdown_report(eval_result)
 
-    run_slug = f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{prompt_version}"
+    run_slug = f"{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{prompt_version}"
     json_file = out_path / f"eval_{run_slug}.json"
     md_file = out_path / f"eval_{run_slug}.md"
 
-    with open(json_file, "w", encoding="utf-8") as f:
-        f.write(json_content)
-
-    with open(md_file, "w", encoding="utf-8") as f:
-        f.write(md_content)
+    json_file.write_text(json_content, encoding="utf-8")
+    md_file.write_text(md_content, encoding="utf-8")
 
     # Append to history ledger
     append_run_history(eval_result, history_file=out_path / "history.json")
@@ -121,7 +125,9 @@ async def run_evaluation(
 
 def main() -> int:
     """CLI entrypoint for running evaluations."""
-    parser = argparse.ArgumentParser(description="Run evaluation on AI Interview Coach golden set.")
+    parser = argparse.ArgumentParser(
+        description="Run evaluation on AI Interview Coach golden set."
+    )
     parser.add_argument(
         "--golden",
         default="evals/golden/scorer.jsonl",
@@ -197,7 +203,9 @@ def main() -> int:
     print(f"Injection Resistance:{summary.injection_resistance_rate:.1%}")
     print(f"Cost per answer:     ${summary.cost_per_answer_usd:.4f}")
     print(f"Total cost:          ${summary.total_cost_usd:.4f}")
-    print(f"Latency p50 / p95:   {summary.latency_p50_ms:.0f}ms / {summary.latency_p95_ms:.0f}ms")
+    print(
+        f"Latency p50 / p95:   {summary.latency_p50_ms:.0f}ms / {summary.latency_p95_ms:.0f}ms"
+    )
     print("=" * 60)
 
     if args.check_thresholds and not eval_result.passed_thresholds:
