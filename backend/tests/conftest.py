@@ -104,8 +104,17 @@ def mock_session_manager(mock_gateway):
 # ---------------------------------------------------------------------------
 
 
+from backend.api.deps import get_context_provider, reset_context_provider
+from backend.context.pgvector_provider import PgVectorContextProvider
+
+
 @pytest.fixture
-async def app(db_engine, mock_gateway, mock_session_manager):
+def mock_context_provider():
+    return PgVectorContextProvider()
+
+
+@pytest.fixture
+async def app(db_engine, mock_gateway, mock_session_manager, mock_context_provider):
     application = create_app()
     session_factory = async_sessionmaker(db_engine, expire_on_commit=False)
 
@@ -121,6 +130,7 @@ async def app(db_engine, mock_gateway, mock_session_manager):
     application.dependency_overrides[get_db] = override_get_db
     application.dependency_overrides[get_gateway] = lambda: mock_gateway
     application.dependency_overrides[get_session_manager] = lambda: mock_session_manager
+    application.dependency_overrides[get_context_provider] = lambda: mock_context_provider
     return application
 
 
