@@ -18,7 +18,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from backend.api.deps import get_context_provider
 from backend.api.deps_gateway import get_gateway, get_session_manager
+from backend.context.pgvector_provider import PgVectorContextProvider
 from backend.db.models import Base
 from backend.db.session import get_db
 from backend.gateway.client import LLMGateway
@@ -102,10 +104,6 @@ def mock_session_manager(mock_gateway):
 # ---------------------------------------------------------------------------
 # FastAPI app & HTTP client fixtures
 # ---------------------------------------------------------------------------
-
-
-from backend.api.deps import get_context_provider, reset_context_provider
-from backend.context.pgvector_provider import PgVectorContextProvider
 
 
 @pytest.fixture

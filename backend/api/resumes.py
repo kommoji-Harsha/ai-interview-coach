@@ -5,7 +5,17 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 
 from backend.api.deps import get_context_provider, get_current_user
 from backend.api.schemas import (
@@ -62,12 +72,11 @@ def validate_file_bytes(content: bytes, filename: str, content_type: str) -> Non
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid PDF file: missing %PDF- header magic bytes",
             )
-    elif ext == ".docx":
-        if not content.startswith(b"PK\x03\x04"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid DOCX file: missing ZIP PK header magic bytes",
-            )
+    elif ext == ".docx" and not content.startswith(b"PK\x03\x04"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid DOCX file: missing ZIP PK header magic bytes",
+        )
 
 
 @router.post("", response_model=ResumeMetadataResponse, status_code=status.HTTP_201_CREATED)

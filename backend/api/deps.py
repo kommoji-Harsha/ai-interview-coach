@@ -1,5 +1,4 @@
 import uuid
-
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, status
