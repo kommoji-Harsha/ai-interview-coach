@@ -121,6 +121,24 @@ class PgVectorContextProvider(ContextProvider):
         for cid in to_del:
             self._chunks.pop(cid, None)
 
+    async def list_resumes_for_user(self, user_id: uuid.UUID) -> list[ResumeContext]:
+        """List all resumes belonging to a specific user."""
+        return [r for r in self._resumes.values() if r.user_id == user_id]
+
+    async def list_jds_for_user(self, user_id: uuid.UUID) -> list[JDContext]:
+        """List all job descriptions belonging to a specific user."""
+        return [j for j in self._jds.values() if j.user_id == user_id]
+
+    async def delete_all_user_contexts(self, user_id: uuid.UUID) -> None:
+        """Purge all resumes, job descriptions, and chunks belonging to a specific user."""
+        user_resumes = [r.id for r in self._resumes.values() if r.user_id == user_id]
+        for rid in user_resumes:
+            await self.delete_resume_context(rid)
+
+        user_jds = [j.id for j in self._jds.values() if j.user_id == user_id]
+        for jid in user_jds:
+            await self.delete_jd_context(jid)
+
     def build_pgvector_query(
         self,
         document_ids: list[uuid.UUID],

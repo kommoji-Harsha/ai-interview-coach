@@ -2,13 +2,16 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
-from jose import jwt
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.deps import get_context_provider, get_current_user
+from backend.api.schemas import DeleteAccountRequest, RefreshTokenRequest
 from backend.config import Settings, get_settings
+from backend.context.provider import ContextProvider
 from backend.db.models import User
 from backend.db.session import get_db
 
@@ -127,3 +130,69 @@ async def login(
         refresh_token=refresh_token,
         expires_at=expires_at,
     )
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_at: datetime
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(
+    req: RefreshTokenRequest,
+    settings: Settings = Depends(get_settings),
+):
+    try:
+        payload = jwt.decode(
+            req.refresh_token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+
+    access_token = create_access_token({"sub": user_id}, settings)
+    new_refresh = create_refresh_token({"sub": user_id}, settings)
+    expires_at = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+
+    return RefreshResponse(
+        access_token=access_token,
+        refresh_token=new_refresh,
+        expires_at=expires_at,
+    )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    req: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    context_provider: ContextProvider = Depends(get_context_provider),
+) -> Response:
+    """Delete authenticated user and cascade delete all sessions, turns, scores, and context."""
+    if not verify_password(req.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password confirmation",
+        )
+
+    # 1. Purge all user resume and job description contexts from context provider
+    await context_provider.delete_all_user_contexts(user.id)
+
+    # 2. Delete user entity from database (cascades via ON DELETE CASCADE to sessions, turns, scores, review_schedule)
+    await db.delete(user)
+    await db.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

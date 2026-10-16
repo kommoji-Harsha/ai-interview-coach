@@ -60,9 +60,11 @@ def create_app() -> FastAPI:
     setup_tracing(app)
 
     # Include routers
+    from backend.analytics.router import router as analytics_router
     from backend.api.auth import router as auth_router
     from backend.api.health import router as health_router
     from backend.api.metrics import router as metrics_router
+    from backend.api.resumes import router as resumes_router
     from backend.api.sessions import router as sessions_router
     from backend.api.transcription import router as transcription_router
 
@@ -70,7 +72,13 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)
     app.include_router(auth_router, prefix=settings.api_v1_prefix + "/auth", tags=["auth"])
     app.include_router(
+        resumes_router, prefix=settings.api_v1_prefix + "/resumes", tags=["resumes"]
+    )
+    app.include_router(
         sessions_router, prefix=settings.api_v1_prefix + "/sessions", tags=["sessions"]
+    )
+    app.include_router(
+        analytics_router, prefix=settings.api_v1_prefix + "/analytics", tags=["analytics"]
     )
     app.include_router(
         transcription_router, prefix=settings.api_v1_prefix + "/voice", tags=["voice"]

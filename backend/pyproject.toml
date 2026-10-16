@@ -33,6 +33,7 @@ dev = [
     "ruff",
     "factory-boy",
     "aiosqlite",
+    "pip-audit>=2.7.0",
 ]
 
 [build-system]

@@ -1,4 +1,5 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -9,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.config import Settings, get_settings
 from backend.db.models import User
 from backend.db.session import get_db
+
+if TYPE_CHECKING:
+    from backend.context.provider import ContextProvider
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 
@@ -38,3 +42,22 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+_context_provider: "ContextProvider | None" = None
+
+
+def get_context_provider() -> "ContextProvider":
+    """Return singleton or configured ContextProvider."""
+    global _context_provider
+    if _context_provider is None:
+        from backend.context.pgvector_provider import PgVectorContextProvider
+
+        _context_provider = PgVectorContextProvider()
+    return _context_provider
+
+
+def reset_context_provider() -> None:
+    """Reset context provider singleton (used in test fixtures)."""
+    global _context_provider
+    _context_provider = None

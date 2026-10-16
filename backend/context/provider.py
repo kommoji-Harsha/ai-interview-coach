@@ -53,3 +53,18 @@ class ContextProvider(ABC):
     async def delete_jd_context(self, jd_id: uuid.UUID) -> None:
         """Delete job description context and all associated chunks."""
         ...
+
+    @abstractmethod
+    async def list_resumes_for_user(self, user_id: uuid.UUID) -> list[ResumeContext]:
+        """List all resumes belonging to a specific user."""
+        ...
+
+    @abstractmethod
+    async def list_jds_for_user(self, user_id: uuid.UUID) -> list[JDContext]:
+        """List all job descriptions belonging to a specific user."""
+        ...
+
+    @abstractmethod
+    async def delete_all_user_contexts(self, user_id: uuid.UUID) -> None:
+        """Purge all resumes, job descriptions, and chunks belonging to a specific user."""
+        ...
