@@ -60,12 +60,15 @@ class MockObservabilityProvider(BaseLLMProvider):
 def test_pii_scrubber_redacts_sensitive_keys():
     """Verify that user content and credentials are redacted from structured log payloads."""
     raw_event = {
-        "event": "llm_call_started",
+        "event": "llm_call_started for candidate user@example.com with phone 555-123-4567",
         "session_id": "abc-123",
         "resume_text": "Candidate experience: Python, FastAPI...",
         "candidate_answer": "My answer is ...",
         "password": "supersecretpassword",
         "google_api_key": "AIzaSySecret",
+        "email": "candidate@example.com",
+        "phone": "555-555-5555",
+        "extra_info": "Reach out at dev@interviewcoach.ai or SSN 123-45-6789",
         "latency_ms": 120,
     }
     scrubbed = pii_scrubber(None, "info", raw_event)
@@ -76,6 +79,15 @@ def test_pii_scrubber_redacts_sensitive_keys():
     assert scrubbed["candidate_answer"] == "[REDACTED]"
     assert scrubbed["password"] == "[REDACTED]"
     assert scrubbed["google_api_key"] == "[REDACTED]"
+    assert scrubbed["email"] == "[REDACTED]"
+    assert scrubbed["phone"] == "[REDACTED]"
+    # Verify regex scrubbing inside normal strings and event description
+    assert "[REDACTED_EMAIL]" in scrubbed["event"]
+    assert "[REDACTED_PHONE]" in scrubbed["event"]
+    assert "[REDACTED_EMAIL]" in scrubbed["extra_info"]
+    assert "[REDACTED_SSN]" in scrubbed["extra_info"]
+    assert "user@example.com" not in scrubbed["event"]
+    assert "dev@interviewcoach.ai" not in scrubbed["extra_info"]
 
 
 def test_configure_logging_runs_cleanly():

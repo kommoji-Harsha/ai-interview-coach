@@ -225,7 +225,7 @@ class SessionManager:
                 raise ValueError("Missing 'question' field")
             return data
         except (json.JSONDecodeError, ValueError) as e:
-            logger.warning("llm_json_parse_failed", error=str(e), content=result.content[:200])
+            logger.warning("llm_json_parse_failed", error=str(e), content_length=len(result.content))
             return {
                 "question": result.content.strip(),
                 "topic": "general",

@@ -6,6 +6,8 @@ from typing import Any
 
 import structlog
 
+from backend.safety.pii import redact_pii
+
 # Keys that should never be logged for PII and security protection
 FORBIDDEN_LOG_KEYS = {
     "resume",
@@ -26,14 +28,44 @@ FORBIDDEN_LOG_KEYS = {
     "jwt_secret_key",
     "google_api_key",
     "openai_api_key",
+    "token",
+    "secret",
+    "authorization",
+    "bearer",
+    "cookie",
+    "email",
+    "phone",
+    "ssn",
+    "credit_card",
+    "card_number",
+    "user_email",
+    "user_phone",
 }
 
 
+def _sanitize_value(val: Any) -> Any:
+    """Recursively scrub PII strings from log data."""
+    if isinstance(val, str):
+        return redact_pii(val)
+    if isinstance(val, dict):
+        return {
+            (k if k.lower() not in FORBIDDEN_LOG_KEYS else k): (
+                "[REDACTED]" if k.lower() in FORBIDDEN_LOG_KEYS else _sanitize_value(v)
+            )
+            for k, v in val.items()
+        }
+    if isinstance(val, list):
+        return [_sanitize_value(item) for item in val]
+    return val
+
+
 def pii_scrubber(logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-    """Ensure raw user content, prompts, and sensitive credentials are not logged."""
+    """Ensure raw user content, prompts, credentials, and regex PII are redacted."""
     for key in list(event_dict.keys()):
         if key.lower() in FORBIDDEN_LOG_KEYS:
             event_dict[key] = "[REDACTED]"
+        else:
+            event_dict[key] = _sanitize_value(event_dict[key])
     return event_dict
 
 
