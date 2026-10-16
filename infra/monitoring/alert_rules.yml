@@ -1,0 +1,62 @@
+groups:
+  - name: llm_and_api_alerts
+    rules:
+      - alert: LLMHighErrorRate
+        expr: >-
+          (sum(rate(llm_requests_total{status="error"}[5m]))
+          / (sum(rate(llm_requests_total[5m])) > 0)) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High LLM error rate detected (> 5%)"
+          description: "Over 5% of LLM provider requests are failing over the past 5 minutes."
+
+      - alert: LLMHighLatency
+        expr: >-
+          histogram_quantile(0.99, sum(rate(llm_request_duration_seconds_bucket[5m])) by (le)) > 8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High LLM latency detected (p99 > 8s)"
+          description: "The 99th percentile latency of LLM requests exceeded 8 seconds for 5 minutes."
+
+      - alert: APIHighErrorRate
+        expr: >-
+          (sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          / (sum(rate(http_requests_total[5m])) > 0)) * 100 > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API 5xx error rate detected (> 2%)"
+          description: "Over 2% of HTTP requests returned 5xx responses over the last 5 minutes."
+
+      - alert: APIHighLatency
+        expr: >-
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected (p99 > 5s)"
+          description: "The 99th percentile HTTP request duration exceeded 5 seconds for 5 minutes."
+
+      - alert: FallbackActivated
+        expr: sum(increase(llm_fallbacks_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM fallback provider activated"
+          description: "One or more requests triggered a fallback from the primary LLM provider."
+
+      - alert: CostSpike
+        expr: sum(rate(llm_cost_usd_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Spike in LLM spend rate detected"
+          description: "LLM spend rate exceeded threshold ($0.05/sec) for more than 5 minutes."
