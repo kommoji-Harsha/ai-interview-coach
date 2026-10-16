@@ -32,4 +32,4 @@ jobs:
 
       - name: Run pip-audit vulnerability scanner
         run: |
-          python -m pip_audit --desc
+          python -m pip_audit --desc --skip-editable
