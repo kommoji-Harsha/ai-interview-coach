@@ -11,11 +11,17 @@ class SessionConfig(BaseModel):
 
 
 class CreateSessionRequest(BaseModel):
+    resume_id: uuid.UUID | None = None
+    jd_id: uuid.UUID | None = None
     resume_text: str = Field(
-        default="", description="Plain text resume (Phase 1: inline text instead of resume_id)"
+        default="",
+        max_length=10_000,
+        description="Plain text resume (max 10,000 characters)",
     )
     jd_text: str = Field(
-        default="", description="Plain text JD (Phase 1: inline text instead of jd_id)"
+        default="",
+        max_length=5_000,
+        description="Plain text job description (max 5,000 characters)",
     )
     config: SessionConfig = Field(default_factory=SessionConfig)
 
@@ -36,7 +42,8 @@ class CreateSessionResponse(BaseModel):
 
 
 class RespondRequest(BaseModel):
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=5_000)
+    audio_url: str | None = None
 
 
 class RespondResponse(BaseModel):
@@ -49,7 +56,113 @@ class RespondResponse(BaseModel):
     turns_remaining: int
 
 
+class TurnSummary(BaseModel):
+    turn_number: int
+    role: str
+    content: str
+    topic: str | None = None
+    difficulty: int | None = None
+    created_at: datetime | None = None
+
+
+class SessionSummaryResponse(BaseModel):
+    id: uuid.UUID
+    status: str
+    turn_count: int
+    overall_score: float | None = None
+    started_at: datetime
+    ended_at: datetime | None = None
+
+
+class SessionDetailResponse(BaseModel):
+    id: uuid.UUID
+    status: str
+    resume_id: uuid.UUID | None = None
+    jd_id: uuid.UUID | None = None
+    config: SessionConfig
+    turns: list[TurnSummary]
+    turn_count: int
+    overall_score: float | None = None
+    started_at: datetime
+    ended_at: datetime | None = None
+
+
+class EndSessionResponse(BaseModel):
+    status: str
+    ended_at: datetime
+    feedback_status: str = "generating"
+
+
+class DimensionScoreItem(BaseModel):
+    dimension: str
+    score: int
+    evidence: str
+    confidence: float
+
+
+class TurnScoreItem(BaseModel):
+    turn_number: int
+    answer_type: str = "attempted"
+    scores: list[DimensionScoreItem]
+
+
+class SessionScoresResponse(BaseModel):
+    session_id: uuid.UUID
+    turns: list[TurnScoreItem]
+    aggregate: dict[str, float | None]
+
+
+class FeedbackContent(BaseModel):
+    summary: str
+    strengths: list[str]
+    improvements: list[str]
+    action_items: list[str]
+    recommended_topics: list[str]
+
+
+class SessionFeedbackResponse(BaseModel):
+    session_id: uuid.UUID
+    status: str
+    feedback: FeedbackContent | None = None
+
+
 class TranscribeResponse(BaseModel):
     text: str
     duration_seconds: float = 0.0
     language: str = "en"
+
+
+# --- Resume Schemas ---
+
+
+class ResumeMetadataResponse(BaseModel):
+    id: uuid.UUID
+    label: str
+    filename: str
+    char_count: int
+    created_at: str
+
+
+class ResumeDetailResponse(BaseModel):
+    id: uuid.UUID
+    label: str
+    filename: str
+    raw_text: str
+    char_count: int
+    created_at: str
+
+
+class PaginatedResponse(BaseModel):
+    items: list[dict | ResumeMetadataResponse | SessionSummaryResponse]
+    next_cursor: str | None = None
+
+
+# --- Auth Schemas ---
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(min_length=8)
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
