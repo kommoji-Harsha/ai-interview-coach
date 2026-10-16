@@ -9,8 +9,10 @@ from pydantic import BaseModel, ValidationError
 
 from backend.gateway.client import LLMGateway
 from backend.gateway.models import Message
+from backend.observability.tracing import get_tracer
 
 logger = structlog.get_logger()
+tracer = get_tracer("ai-interview-coach.agents")
 
 
 class AgentValidationError(Exception):
@@ -92,50 +94,57 @@ class BaseAgent[InputT: BaseModel, OutputT: BaseModel]:
         model: str | None = None,
     ) -> OutputT:
         """Execute the agent loop with retry-on-invalid-output."""
-        messages = self.build_prompt(input_data)
-        history = list(messages)
-        last_raw: str | None = None
-        last_error: Exception | None = None
+        with tracer.start_as_current_span(f"agent.{self.agent_type}.run") as span:
+            span.set_attribute("agent.type", str(self.agent_type))
+            span.set_attribute("agent.prompt_version", str(self.version))
+            if session_id:
+                span.set_attribute("session.id", str(session_id))
 
-        for attempt in range(self.max_retries + 1):
-            try:
-                result = await self._gateway.complete(
-                    messages=history,
-                    model=model,
-                    temperature=self.temperature,
-                    agent_type=self.agent_type,
-                    session_id=session_id,
-                )
-                last_raw = result.content
-                parsed = self.validate(result.content)
-                return parsed
+            messages = self.build_prompt(input_data)
+            history = list(messages)
+            last_raw: str | None = None
+            last_error: Exception | None = None
 
-            except (json.JSONDecodeError, ValidationError, ValueError) as err:
-                last_error = err
-                logger.warning(
-                    "agent_output_validation_failed",
-                    agent_type=self.agent_type,
-                    attempt=attempt + 1,
-                    max_attempts=self.max_retries + 1,
-                    error=str(err),
-                    raw_content=last_raw[:200] if last_raw else "",
-                )
-
-                if attempt < self.max_retries:
-                    # Append error context to message history for next retry
-                    history.append(Message(role="assistant", content=last_raw or ""))
-                    error_feedback = (
-                        f"Your previous response was invalid. Error details: {err}.\n"
-                        f"Please correct the error and respond ONLY with a valid JSON object matching the required schema."
+            for attempt in range(self.max_retries + 1):
+                try:
+                    result = await self._gateway.complete(
+                        messages=history,
+                        model=model,
+                        temperature=self.temperature,
+                        agent_type=self.agent_type,
+                        session_id=session_id,
+                        prompt_version=self.version,
                     )
-                    history.append(Message(role="user", content=error_feedback))
+                    last_raw = result.content
+                    parsed = self.validate(result.content)
+                    return parsed
 
-        # Check if fallback handler provides an answer
-        if fallback := self.handle_fallback(input_data, last_error, last_raw):
-            return fallback
+                except (json.JSONDecodeError, ValidationError, ValueError) as err:
+                    last_error = err
+                    logger.warning(
+                        "agent_output_validation_failed",
+                        agent_type=self.agent_type,
+                        attempt=attempt + 1,
+                        max_attempts=self.max_retries + 1,
+                        error=str(err),
+                        raw_content=last_raw[:200] if last_raw else "",
+                    )
 
-        raise AgentValidationError(
-            f"Agent {self.agent_type} failed validation after {self.max_retries + 1} attempts: {last_error}",
-            raw_content=last_raw,
-            errors=last_error,
-        )
+                    if attempt < self.max_retries:
+                        # Append error context to message history for next retry
+                        history.append(Message(role="assistant", content=last_raw or ""))
+                        error_feedback = (
+                            f"Your previous response was invalid. Error details: {err}.\n"
+                            f"Please correct the error and respond ONLY with a valid JSON object matching the required schema."
+                        )
+                        history.append(Message(role="user", content=error_feedback))
+
+            # Check if fallback handler provides an answer
+            if fallback := self.handle_fallback(input_data, last_error, last_raw):
+                return fallback
+
+            raise AgentValidationError(
+                f"Agent {self.agent_type} failed validation after {self.max_retries + 1} attempts: {last_error}",
+                raw_content=last_raw,
+                errors=last_error,
+            )

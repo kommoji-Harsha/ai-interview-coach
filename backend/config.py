@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     # Voice / Transcription
     whisper_model: str = "whisper-1"
 
+    # Observability
+    otel_service_name: str = "ai-interview-coach-backend"
+    otel_exporter_otlp_endpoint: str = ""
+    metrics_enabled: bool = True
+    log_level: str = "INFO"
+    json_logs: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

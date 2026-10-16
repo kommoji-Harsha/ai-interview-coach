@@ -9,8 +9,11 @@ from backend.agents.models import DimensionScore, ScoreResponse, ScorerInput
 from backend.agents.prompt_loader import load_prompt_file, parse_prompt_sections, render_template
 from backend.gateway.client import LLMGateway
 from backend.gateway.models import Message
+from backend.observability.metrics import SCORE_VALUE, SCORES_GENERATED_TOTAL
+from backend.observability.tracing import get_tracer
 
 logger = structlog.get_logger()
+tracer = get_tracer("ai-interview-coach.scorer")
 
 # Standard rubric dimensions by topic
 DEFAULT_RUBRIC_BY_TOPIC: dict[str, list[str]] = {
@@ -162,9 +165,13 @@ class ScorerAgent(BaseAgent[ScorerInput, ScoreResponse]):
                     temperature=self.temperature,
                     agent_type=self.agent_type,
                     session_id=session_id,
+                    prompt_version=self.version,
                 )
                 last_raw = result.content
                 parsed = self.validate_and_postprocess(result.content, effective_dimensions)
+                for s in parsed.scores:
+                    SCORES_GENERATED_TOTAL.labels(dimension=s.dimension).inc()
+                    SCORE_VALUE.labels(dimension=s.dimension).observe(s.score)
                 return parsed
 
             except Exception as err:
